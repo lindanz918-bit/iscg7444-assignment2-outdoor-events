@@ -11,8 +11,11 @@
      } catch {
        // response was not JSON
      }
-     if (!res.ok) {
+          if (!res.ok) {
        throw new Error((data && data.error) || `Request failed (${res.status})`);
+     }
+     if (data === null) {
+       throw new Error("Unexpected response from the server. Is the backend running?");
      }
      return data;
    }

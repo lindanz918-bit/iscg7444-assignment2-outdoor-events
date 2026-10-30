@@ -1,3 +1,4 @@
+   import AdminPage from "./pages/AdminPage";
 function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", textAlign: "left" }}>
