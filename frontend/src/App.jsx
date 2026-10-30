@@ -1,26 +1,17 @@
-import { useState } from "react";
-import { initialEvents } from "./mockData";
-import EventList from "./pages/EventList";
-import EventDetail from "./pages/EventDetail";
-import AdminPage from "./pages/AdminPage";
-
 function App() {
-  const [events, setEvents] = useState(initialEvents);
-  const [selected, setSelected] = useState(null);
-  const [page, setPage] = useState("list");
-
   return (
-    <div style={{ padding: "20px", textAlign: "left" }}>
-      <button onClick={() => { setPage("list"); setSelected(null); }}>Events</button>{" "}
-      <button onClick={() => { setPage("admin"); setSelected(null); }}>Admin</button>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", textAlign: "left" }}>
+      <header style={{ padding: "16px 20px", borderBottom: "1px solid #ccc" }}>
+        <h2 style={{ margin: 0 }}>Community Events</h2>
+      </header>
 
-      {page === "admin" ? (
-        <AdminPage events={events} setEvents={setEvents} />
-      ) : selected ? (
-        <EventDetail event={selected} onBack={() => setSelected(null)} />
-      ) : (
-        <EventList events={events} onSelect={setSelected} />
-      )}
+      <main style={{ flex: 1, padding: "20px" }}>
+        <p>Event pages will be shown here.</p>
+      </main>
+
+      <footer style={{ padding: "12px 20px", borderTop: "1px solid #ccc", color: "#666" }}>
+        ISCG7444 Assignment 2
+      </footer>
     </div>
   );
 }
