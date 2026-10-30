@@ -1,3 +1,4 @@
+   import AdminPage from "./pages/AdminPage";
 function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", textAlign: "left" }}>
@@ -5,9 +6,9 @@ function App() {
         <h2 style={{ margin: 0 }}>Community Events</h2>
       </header>
 
-      <main style={{ flex: 1, padding: "20px" }}>
-        <p>Event pages will be shown here.</p>
-      </main>
+       <main style={{ flex: 1, padding: "20px" }}>
+     <AdminPage />
+   </main>
 
       <footer style={{ padding: "12px 20px", borderTop: "1px solid #ccc", color: "#666" }}>
         ISCG7444 Assignment 2
