@@ -25,4 +25,8 @@ def create_app():
         from . import models  # 导入模型文件
         db.create_all()  # 在本地生成 SQLite 数据库文件
 
+    # 注册蓝图
+    from .routes import events_bp
+    app.register_blueprint(events_bp)
+
     return app
