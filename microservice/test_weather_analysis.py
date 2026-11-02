@@ -44,7 +44,7 @@ class TestWeatherAnalysis:
             event_type='market'
         )
         
-        # Rain: 25, Wind: 10, Temp: 0 = 350 deduction
+        # Rain: 25, Wind: 10, Temp: 0 = 35 deduction
         assert result['suitability_score'] == 65
         assert result['risk_level'] == "Moderate Risk"
         assert "acceptable" in result['recommendation'].lower()
