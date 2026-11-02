@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  microservice:
+    build: ./microservice
+    container_name: outdoor-events-microservice
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+    networks:
+      - outdoor-events-network
+
+  backend:
+    build: ./backend
+    container_name: outdoor-events-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///outdoor_events.db
+      - MICROSERVICE_URL=http://microservice:5001
+    depends_on:
+      - microservice
+    networks:
+      - outdoor-events-network
+    volumes:
+      - ./backend/instance:/app/instance
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:5000
+    container_name: outdoor-events-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - outdoor-events-network
+
+networks:
+  outdoor-events-network:
+    driver: bridge
