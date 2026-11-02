@@ -43,9 +43,10 @@ def create_app():
             print('Admin user created: username=admin, password=123456')
 
     # Registration Blueprint
-    from .routes import events_bp
+    from .routes import events_bp, weather_bp
     from .auth import auth_bp
     app.register_blueprint(events_bp)
+    app.register_blueprint(weather_bp)
     app.register_blueprint(auth_bp)
 
     return app
