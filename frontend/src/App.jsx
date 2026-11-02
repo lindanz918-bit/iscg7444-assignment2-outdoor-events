@@ -1,4 +1,11 @@
+import { useState } from "react";
+import AdminPage from "./pages/AdminPage";
+import LoginPage from "./pages/LoginPage";
+import { getToken, clearToken } from "./api";
+
 function App() {
+  const [loggedIn, setLoggedIn] = useState(!!getToken());
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", textAlign: "left" }}>
       <header style={{ padding: "16px 20px", borderBottom: "1px solid #ccc" }}>
@@ -6,7 +13,14 @@ function App() {
       </header>
 
       <main style={{ flex: 1, padding: "20px" }}>
-        <p>Event pages will be shown here.</p>
+        {loggedIn ? (
+          <>
+            <button onClick={() => { clearToken(); setLoggedIn(false); }}>Logout</button>
+            <AdminPage />
+          </>
+        ) : (
+          <LoginPage onLogin={() => setLoggedIn(true)} />
+        )}
       </main>
 
       <footer style={{ padding: "12px 20px", borderTop: "1px solid #ccc", color: "#666" }}>
