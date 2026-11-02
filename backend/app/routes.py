@@ -1,8 +1,18 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import db
-from .models import Event
+from .models import Event, User
 
 events_bp = Blueprint('events', __name__)
+
+
+def admin_required():
+    """Check if current user is admin"""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user or user.role != 'admin':
+        return False
+    return True
 
 
 @events_bp.route('/api/events', methods=['GET'])
@@ -20,8 +30,12 @@ def get_event(event_id):
 
 
 @events_bp.route('/api/events', methods=['POST'])
+@jwt_required()
 def create_event():
-    """Create a new event"""
+    """Create a new event (admin only)"""
+    if not admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    
     data = request.get_json()
     
     if not data:
@@ -48,8 +62,12 @@ def create_event():
 
 
 @events_bp.route('/api/events/<int:event_id>', methods=['PUT'])
+@jwt_required()
 def update_event(event_id):
-    """Update event information"""
+    """Update event information (admin only)"""
+    if not admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    
     event = Event.query.get_or_404(event_id)
     data = request.get_json()
     
@@ -74,8 +92,12 @@ def update_event(event_id):
 
 
 @events_bp.route('/api/events/<int:event_id>', methods=['DELETE'])
+@jwt_required()
 def delete_event(event_id):
-    """Delete an event"""
+    """Delete an event (admin only)"""
+    if not admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    
     event = Event.query.get_or_404(event_id)
     db.session.delete(event)
     db.session.commit()
