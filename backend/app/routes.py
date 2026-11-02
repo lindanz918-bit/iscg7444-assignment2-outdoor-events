@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import db
 from .models import Event, User
+from .weather import get_weather_by_location, get_weather_forecast
 
 events_bp = Blueprint('events', __name__)
+weather_bp = Blueprint('weather', __name__)
 
 
 def admin_required():
@@ -103,3 +105,39 @@ def delete_event(event_id):
     db.session.commit()
     
     return jsonify({'message': 'Event deleted successfully'}), 200
+
+
+@weather_bp.route('/api/weather/current', methods=['GET'])
+def get_current_weather():
+    """Get current weather for a location"""
+    location = request.args.get('location')
+    
+    if not location:
+        return jsonify({'error': 'Location parameter is required'}), 400
+    
+    weather_data = get_weather_by_location(location)
+    
+    if 'error' in weather_data:
+        return jsonify(weather_data), 500
+    
+    return jsonify(weather_data), 200
+
+
+@weather_bp.route('/api/weather/forecast', methods=['GET'])
+def get_weather_forecast_endpoint():
+    """Get weather forecast for a location"""
+    location = request.args.get('location')
+    days = request.args.get('days', 5, type=int)
+    
+    if not location:
+        return jsonify({'error': 'Location parameter is required'}), 400
+    
+    if days < 1 or days > 5:
+        return jsonify({'error': 'Days parameter must be between 1 and 5'}), 400
+    
+    forecast_data = get_weather_forecast(location, days)
+    
+    if 'error' in forecast_data:
+        return jsonify(forecast_data), 500
+    
+    return jsonify(forecast_data), 200
