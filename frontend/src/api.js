@@ -28,6 +28,7 @@ export const login = (email, password) =>
   request("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
 
 export const getEvents = () => request("/api/events");
+export const getEvent = (id) => request(`/api/events/${id}`);
 export const createEvent = (event) => request("/api/events", { method: "POST", body: JSON.stringify(event) });
 export const updateEvent = (id, event) => request(`/api/events/${id}`, { method: "PUT", body: JSON.stringify(event) });
 export const deleteEvent = (id) => request(`/api/events/${id}`, { method: "DELETE" });
