@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 
@@ -13,6 +14,9 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
+    
+    # Enable CORS
+    CORS(app)
 
     # Configure database connection (prioritizes DATABASE_URL from .env; defaults to local SQLite)
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///outdoor_events.db')
@@ -43,10 +47,11 @@ def create_app():
             print('Admin user created: username=admin, password=123456')
 
     # Registration Blueprint
-    from .routes import events_bp, weather_bp
+    from .routes import events_bp, weather_bp, evaluation_bp
     from .auth import auth_bp
     app.register_blueprint(events_bp)
     app.register_blueprint(weather_bp)
+    app.register_blueprint(evaluation_bp)
     app.register_blueprint(auth_bp)
 
     return app
