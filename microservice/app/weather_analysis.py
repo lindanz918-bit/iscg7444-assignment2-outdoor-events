@@ -56,35 +56,88 @@ def validate_inputs(temperature, rain_probability, wind_speed, event_type):
         raise ValidationError(f"Event type must be one of: {', '.join(valid_event_types)}")
 
 
+# Thresholds for the event-specific risk rules
+SPORTS_RAIN_THRESHOLD = 0.4      # rain probability
+MARKET_WIND_THRESHOLD = 10       # m/s
+GATHERING_COLD_THRESHOLD = 10    # °C, below this is too cold to stay outside for long
+GATHERING_HOT_THRESHOLD = 30     # °C, above this is too hot to stay outside for long
+EVENT_TYPE_PENALTY = 10
+
+
+def calculate_event_type_deduction(temperature, rain_probability, wind_speed, event_type):
+    """
+    Apply extra risk penalties that depend on the type of event.
+
+    - sports: rain makes playing surfaces slippery and unsafe
+    - market: strong wind can blow over stalls and gazebos
+    - gathering: attendees stay outside for a long time without much
+      movement, so cold or hot temperatures add extra risk
+
+    Args:
+        temperature (float): Temperature in Celsius
+        rain_probability (float): Rain probability between 0 and 1
+        wind_speed (float): Wind speed in m/s
+        event_type (str): Lowercase event type (sports, market, gathering)
+
+    Returns:
+        tuple: (total event-specific deduction, list of applied rules)
+    """
+    rules = []
+
+    if event_type == 'sports' and rain_probability >= SPORTS_RAIN_THRESHOLD:
+        rules.append({
+            "rule": "Rain makes playing surfaces slippery for sports",
+            "deduction": EVENT_TYPE_PENALTY
+        })
+
+    if event_type == 'market' and wind_speed >= MARKET_WIND_THRESHOLD:
+        rules.append({
+            "rule": "Strong wind can blow over market stalls and gazebos",
+            "deduction": EVENT_TYPE_PENALTY
+        })
+
+    if event_type == 'gathering' and (
+        temperature < GATHERING_COLD_THRESHOLD or temperature > GATHERING_HOT_THRESHOLD
+    ):
+        rules.append({
+            "rule": "Cold or hot weather is uncomfortable for long outdoor gatherings",
+            "deduction": EVENT_TYPE_PENALTY
+        })
+
+    total = sum(rule["deduction"] for rule in rules)
+    return total, rules
+
+
 def calculate_suitability_score(temperature, rain_probability, wind_speed, event_type):
     """
     Calculate weather suitability score for an outdoor event.
-    
+
     Args:
         temperature (float): Temperature in Celsius
         rain_probability (float): Rain probability between 0 and 1
         wind_speed (float): Wind speed in m/s
         event_type (str): Type of event (sports, market, gathering)
-    
+
     Returns:
         dict: Dictionary containing:
             - suitability_score (int): Score between 0 and 100
             - risk_level (str): Low Risk, Moderate Risk, or High Risk
             - recommendation (str): Text recommendation based on risk level
-            - risk_factors (dict): Detailed breakdown of risk deductions
-    
+            - risk_factors (dict): Detailed breakdown of risk deductions,
+              including the event-specific rules that were applied
+
     Raises:
         ValidationError: If any input is invalid
     """
     # Validate inputs
     validate_inputs(temperature, rain_probability, wind_speed, event_type)
-    
+
     # Normalize event type to lowercase
     event_type = event_type.lower()
-    
+
     # Start with a perfect score of 100
     score = 100
-    
+
     # Rain probability deductions
     if rain_probability < 0.2:
         rain_deduction = 0
@@ -94,9 +147,9 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
         rain_deduction = 25
     else:
         rain_deduction = 40
-    
+
     score -= rain_deduction
-    
+
     # Wind speed deductions
     if wind_speed < 6:
         wind_deduction = 0
@@ -106,9 +159,9 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
         wind_deduction = 20
     else:
         wind_deduction = 35
-    
+
     score -= wind_deduction
-    
+
     # Temperature deductions
     if 10 <= temperature <= 30:
         temp_deduction = 0
@@ -116,19 +169,18 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
         temp_deduction = 10
     else:
         temp_deduction = 25
-    
+
     score -= temp_deduction
-    
-    # Event type specific deductions
-    # Sports events are more sensitive to rain
-    event_type_deduction = 0
-    if event_type == 'sports' and rain_probability >= 0.4:
-        event_type_deduction = 10
-        score -= event_type_deduction
-    
+
+    # Event type specific deductions (see calculate_event_type_deduction)
+    event_type_deduction, event_type_rules = calculate_event_type_deduction(
+        temperature, rain_probability, wind_speed, event_type
+    )
+    score -= event_type_deduction
+
     # Ensure score stays within 0-100 range
     score = max(0, min(100, score))
-    
+
     # Determine risk level and recommendation
     if score >= 75:
         risk_level = "Low Risk"
@@ -139,7 +191,7 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
     else:
         risk_level = "High Risk"
         recommendation = "Weather conditions are unfavorable. Consider rescheduling or implementing significant contingency measures."
-    
+
     return {
         "suitability_score": int(score),
         "risk_level": risk_level,
@@ -149,6 +201,7 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
             "wind_deduction": wind_deduction,
             "temperature_deduction": temp_deduction,
             "event_type_deduction": event_type_deduction,
+            "event_type_rules": event_type_rules,
             "total_deduction": rain_deduction + wind_deduction + temp_deduction + event_type_deduction
         }
     }
