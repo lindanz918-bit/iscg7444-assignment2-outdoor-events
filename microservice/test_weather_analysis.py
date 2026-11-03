@@ -311,3 +311,148 @@ class TestWeatherAnalysis:
         # High Risk threshold (0-39)
         result3 = calculate_suitability_score(40, 0.8, 20, 'market')
         assert result3['risk_level'] == "High Risk"
+    
+    def test_risk_factors_object_present(self):
+        """Test that risk_factors object is included in response"""
+        result = calculate_suitability_score(
+            temperature=20,
+            rain_probability=0.5,
+            wind_speed=8,
+            event_type='market'
+        )
+        
+        assert 'risk_factors' in result
+        assert isinstance(result['risk_factors'], dict)
+    
+    def test_rain_deduction_calculation(self):
+        """Test rain deduction calculation"""
+        # No rain deduction
+        result1 = calculate_suitability_score(20, 0.1, 5, 'market')
+        assert result1['risk_factors']['rain_deduction'] == 0
+        
+        # Low rain deduction
+        result2 = calculate_suitability_score(20, 0.3, 5, 'market')
+        assert result2['risk_factors']['rain_deduction'] == 10
+        
+        # Medium rain deduction
+        result3 = calculate_suitability_score(20, 0.5, 5, 'market')
+        assert result3['risk_factors']['rain_deduction'] == 25
+        
+        # High rain deduction
+        result4 = calculate_suitability_score(20, 0.8, 5, 'market')
+        assert result4['risk_factors']['rain_deduction'] == 40
+    
+    def test_wind_deduction_calculation(self):
+        """Test wind deduction calculation"""
+        # No wind deduction
+        result1 = calculate_suitability_score(20, 0.1, 5, 'market')
+        assert result1['risk_factors']['wind_deduction'] == 0
+        
+        # Low wind deduction
+        result2 = calculate_suitability_score(20, 0.1, 8, 'market')
+        assert result2['risk_factors']['wind_deduction'] == 10
+        
+        # Medium wind deduction
+        result3 = calculate_suitability_score(20, 0.1, 12, 'market')
+        assert result3['risk_factors']['wind_deduction'] == 20
+        
+        # High wind deduction
+        result4 = calculate_suitability_score(20, 0.1, 20, 'market')
+        assert result4['risk_factors']['wind_deduction'] == 35
+    
+    def test_temperature_deduction_calculation(self):
+        """Test temperature deduction calculation"""
+        # Ideal temperature - no deduction
+        result1 = calculate_suitability_score(20, 0.1, 5, 'market')
+        assert result1['risk_factors']['temperature_deduction'] == 0
+        
+        # Slightly cold - low deduction
+        result2 = calculate_suitability_score(8, 0.1, 5, 'market')
+        assert result2['risk_factors']['temperature_deduction'] == 10
+        
+        # Slightly hot - low deduction
+        result3 = calculate_suitability_score(32, 0.1, 5, 'market')
+        assert result3['risk_factors']['temperature_deduction'] == 10
+        
+        # Very cold - high deduction
+        result4 = calculate_suitability_score(0, 0.1, 5, 'market')
+        assert result4['risk_factors']['temperature_deduction'] == 25
+        
+        # Very hot - high deduction
+        result5 = calculate_suitability_score(40, 0.1, 5, 'market')
+        assert result5['risk_factors']['temperature_deduction'] == 25
+    
+    def test_event_type_deduction_sports(self):
+        """Test event type deduction for sports with rain"""
+        # Sports with high rain - should have event type deduction
+        result1 = calculate_suitability_score(20, 0.5, 5, 'sports')
+        assert result1['risk_factors']['event_type_deduction'] == 10
+        
+        # Sports with low rain - no event type deduction
+        result2 = calculate_suitability_score(20, 0.1, 5, 'sports')
+        assert result2['risk_factors']['event_type_deduction'] == 0
+    
+    def test_event_type_deduction_market(self):
+        """Test event type deduction for market (should always be 0)"""
+        result1 = calculate_suitability_score(20, 0.5, 5, 'market')
+        assert result1['risk_factors']['event_type_deduction'] == 0
+        
+        result2 = calculate_suitability_score(20, 0.8, 5, 'market')
+        assert result2['risk_factors']['event_type_deduction'] == 0
+    
+    def test_event_type_deduction_gathering(self):
+        """Test event type deduction for gathering (should always be 0)"""
+        result1 = calculate_suitability_score(20, 0.5, 5, 'gathering')
+        assert result1['risk_factors']['event_type_deduction'] == 0
+        
+        result2 = calculate_suitability_score(20, 0.8, 5, 'gathering')
+        assert result2['risk_factors']['event_type_deduction'] == 0
+    
+    def test_total_deduction_calculation(self):
+        """Test that total deduction equals sum of individual deductions"""
+        result = calculate_suitability_score(
+            temperature=15,
+            rain_probability=0.5,
+            wind_speed=8,
+            event_type='sports'
+        )
+        
+        rain_ded = result['risk_factors']['rain_deduction']
+        wind_ded = result['risk_factors']['wind_deduction']
+        temp_ded = result['risk_factors']['temperature_deduction']
+        event_ded = result['risk_factors']['event_type_deduction']
+        total_ded = result['risk_factors']['total_deduction']
+        
+        assert total_ded == rain_ded + wind_ded + temp_ded + event_ded
+    
+    def test_risk_factors_consistency_with_score(self):
+        """Test that score calculation is consistent with risk factors"""
+        result = calculate_suitability_score(
+            temperature=15,
+            rain_probability=0.5,
+            wind_speed=8,
+            event_type='sports'
+        )
+        
+        total_deduction = result['risk_factors']['total_deduction']
+        expected_score = 100 - total_deduction
+        
+        assert result['suitability_score'] == expected_score
+    
+    def test_risk_factors_with_all_deductions(self):
+        """Test risk factors when all deductions apply"""
+        result = calculate_suitability_score(
+            temperature=40,
+            rain_probability=0.8,
+            wind_speed=20,
+            event_type='sports'
+        )
+        
+        # All deductions should be present
+        assert result['risk_factors']['rain_deduction'] == 40
+        assert result['risk_factors']['wind_deduction'] == 35
+        assert result['risk_factors']['temperature_deduction'] == 25
+        assert result['risk_factors']['event_type_deduction'] == 10
+        assert result['risk_factors']['total_deduction'] == 110
+        # Score should be capped at 0
+        assert result['suitability_score'] == 0

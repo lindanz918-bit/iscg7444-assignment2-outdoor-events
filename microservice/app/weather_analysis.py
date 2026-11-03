@@ -71,6 +71,7 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
             - suitability_score (int): Score between 0 and 100
             - risk_level (str): Low Risk, Moderate Risk, or High Risk
             - recommendation (str): Text recommendation based on risk level
+            - risk_factors (dict): Detailed breakdown of risk deductions
     
     Raises:
         ValidationError: If any input is invalid
@@ -120,8 +121,10 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
     
     # Event type specific deductions
     # Sports events are more sensitive to rain
+    event_type_deduction = 0
     if event_type == 'sports' and rain_probability >= 0.4:
-        score -= 10
+        event_type_deduction = 10
+        score -= event_type_deduction
     
     # Ensure score stays within 0-100 range
     score = max(0, min(100, score))
@@ -140,5 +143,12 @@ def calculate_suitability_score(temperature, rain_probability, wind_speed, event
     return {
         "suitability_score": int(score),
         "risk_level": risk_level,
-        "recommendation": recommendation
+        "recommendation": recommendation,
+        "risk_factors": {
+            "rain_deduction": rain_deduction,
+            "wind_deduction": wind_deduction,
+            "temperature_deduction": temp_deduction,
+            "event_type_deduction": event_type_deduction,
+            "total_deduction": rain_deduction + wind_deduction + temp_deduction + event_type_deduction
+        }
     }
