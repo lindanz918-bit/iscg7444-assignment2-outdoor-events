@@ -15,7 +15,7 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
-    
+
     # Enable CORS
     CORS(app)
 
@@ -23,7 +23,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///outdoor_events.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
-    
+
     # JWT Configuration
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False  # Token doesn't expire
@@ -36,7 +36,15 @@ def create_app():
     with app.app_context():
         from . import models  # Import model file
         db.create_all()  # Generate an SQLite database file locally
-        
+
+        # create_all() does not add new columns to existing tables,
+        # so add event_type to databases created before this field existed
+        from sqlalchemy import inspect, text
+        event_columns = [column['name'] for column in inspect(db.engine).get_columns('events')]
+        if 'event_type' not in event_columns:
+            db.session.execute(text('ALTER TABLE events ADD COLUMN event_type VARCHAR(20)'))
+            db.session.commit()
+
         # Create a default administrator user (if it does not exist)
         from .models import User
         admin = User.query.filter_by(username='admin').first()

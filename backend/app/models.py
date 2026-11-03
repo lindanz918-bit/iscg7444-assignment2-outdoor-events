@@ -29,6 +29,10 @@ class User(db.Model):
         }
 
 
+# Event types supported by the suitability microservice
+EVENT_TYPES = ('sports', 'market', 'gathering')
+
+
 class Event(db.Model):
     __tablename__ = 'events'
 
@@ -38,6 +42,7 @@ class Event(db.Model):
     location = db.Column(db.String(100), nullable=False)
     date = db.Column(db.String(50), nullable=False)
     time = db.Column(db.String(50), nullable=True)
+    event_type = db.Column(db.String(20), nullable=True)  # one of EVENT_TYPES
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -49,6 +54,7 @@ class Event(db.Model):
             "location": self.location,
             "date": self.date,
             "time": self.time,
+            "event_type": self.event_type,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

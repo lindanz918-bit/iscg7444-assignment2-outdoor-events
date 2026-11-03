@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import db
-from .models import Event, User, EvaluationLog
+from .models import Event, User, EvaluationLog, EVENT_TYPES
 from .weather import get_weather_by_location, get_weather_forecast
 from .microservice_client import call_microservice_analyze
 from flasgger import swag_from
@@ -19,6 +19,17 @@ def admin_required():
     if not user or user.role != 'admin':
         return False
     return True
+
+
+def parse_event_type(value):
+    """Return the event type in lowercase, or None if it is not a supported type."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip().lower()
+    return value if value in EVENT_TYPES else None
+
+
+EVENT_TYPE_ERROR = f"event_type must be one of: {', '.join(EVENT_TYPES)}"
 
 
 @events_bp.route('/api/events', methods=['GET'])
@@ -39,7 +50,8 @@ def admin_required():
                         'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
                         'location': {'type': 'string', 'example': 'Central Park, Auckland'},
                         'date': {'type': 'string', 'example': '2024-12-15'},
-                        'time': {'type': 'string', 'example': '14:00'}
+                        'time': {'type': 'string', 'example': '14:00'},
+                        'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                     }
                 }
             }
@@ -77,7 +89,8 @@ def get_events():
                     'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
                     'location': {'type': 'string', 'example': 'Central Park, Auckland'},
                     'date': {'type': 'string', 'example': '2024-12-15'},
-                    'time': {'type': 'string', 'example': '14:00'}
+                    'time': {'type': 'string', 'example': '14:00'},
+                    'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                 }
             }
         },
@@ -111,7 +124,8 @@ def get_event(event_id):
                     'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
                     'location': {'type': 'string', 'example': 'Central Park, Auckland'},
                     'date': {'type': 'string', 'example': '2024-12-15'},
-                    'time': {'type': 'string', 'example': '14:00'}
+                    'time': {'type': 'string', 'example': '14:00'},
+                    'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                 },
                 'required': ['title', 'location', 'date']
             }
@@ -128,7 +142,8 @@ def get_event(event_id):
                     'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
                     'location': {'type': 'string', 'example': 'Central Park, Auckland'},
                     'date': {'type': 'string', 'example': '2024-12-15'},
-                    'time': {'type': 'string', 'example': '14:00'}
+                    'time': {'type': 'string', 'example': '14:00'},
+                    'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                 }
             }
         },
@@ -159,29 +174,37 @@ def create_event():
     """Create a new event (admin only)"""
     if not admin_required():
         return jsonify({'error': 'Admin access required'}), 403
-    
+
     data = request.get_json()
-    
+
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-    
+
     # Validate required fields
     required_fields = ['title', 'location', 'date']
     for field in required_fields:
         if field not in data or not data[field]:
             return jsonify({'error': f'{field} is required'}), 400
-    
+
+    # event_type is optional, but must be a supported type when provided
+    event_type = None
+    if data.get('event_type'):
+        event_type = parse_event_type(data['event_type'])
+        if event_type is None:
+            return jsonify({'error': EVENT_TYPE_ERROR}), 400
+
     event = Event(
         title=data['title'],
         description=data.get('description', ''),
         location=data['location'],
         date=data['date'],
-        time=data.get('time', '')
+        time=data.get('time', ''),
+        event_type=event_type
     )
-    
+
     db.session.add(event)
     db.session.commit()
-    
+
     return jsonify(event.to_dict()), 201
 
 
@@ -211,7 +234,8 @@ def create_event():
                     'description': {'type': 'string', 'example': 'Updated description'},
                     'location': {'type': 'string', 'example': 'Albert Park, Auckland'},
                     'date': {'type': 'string', 'example': '2024-12-20'},
-                    'time': {'type': 'string', 'example': '15:00'}
+                    'time': {'type': 'string', 'example': '15:00'},
+                    'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                 }
             }
         }
@@ -227,7 +251,8 @@ def create_event():
                     'description': {'type': 'string', 'example': 'Updated description'},
                     'location': {'type': 'string', 'example': 'Albert Park, Auckland'},
                     'date': {'type': 'string', 'example': '2024-12-20'},
-                    'time': {'type': 'string', 'example': '15:00'}
+                    'time': {'type': 'string', 'example': '15:00'},
+                    'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
                 }
             }
         },
@@ -249,13 +274,13 @@ def update_event(event_id):
     """Update event information (admin only)"""
     if not admin_required():
         return jsonify({'error': 'Admin access required'}), 403
-    
+
     event = Event.query.get_or_404(event_id)  # type: ignore
     data = request.get_json()
-    
+
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-    
+
     # Update fields if provided
     if 'title' in data:
         event.title = data['title']
@@ -267,9 +292,17 @@ def update_event(event_id):
         event.date = data['date']
     if 'time' in data:
         event.time = data['time']
-    
+    if 'event_type' in data:
+        if data['event_type']:
+            event_type = parse_event_type(data['event_type'])
+            if event_type is None:
+                return jsonify({'error': EVENT_TYPE_ERROR}), 400
+            event.event_type = event_type
+        else:
+            event.event_type = None
+
     db.session.commit()
-    
+
     return jsonify(event.to_dict()), 200
 
 
@@ -314,11 +347,11 @@ def delete_event(event_id):
     """Delete an event (admin only)"""
     if not admin_required():
         return jsonify({'error': 'Admin access required'}), 403
-    
+
     event = Event.query.get_or_404(event_id)  # type: ignore
     db.session.delete(event)
     db.session.commit()
-    
+
     return jsonify({'message': 'Event deleted successfully'}), 200
 
 
@@ -375,15 +408,15 @@ def delete_event(event_id):
 def get_current_weather():
     """Get current weather for a location"""
     location = request.args.get('location')
-    
+
     if not location:
         return jsonify({'error': 'Location parameter is required'}), 400
-    
+
     weather_data = get_weather_by_location(location)
-    
+
     if 'error' in weather_data:
         return jsonify(weather_data), 500
-    
+
     return jsonify(weather_data), 200
 
 
@@ -451,18 +484,18 @@ def get_weather_forecast_endpoint():
     """Get weather forecast for a location"""
     location = request.args.get('location')
     days = request.args.get('days', 5, type=int)
-    
+
     if not location:
         return jsonify({'error': 'Location parameter is required'}), 400
-    
+
     if days < 1 or days > 5:
         return jsonify({'error': 'Days parameter must be between 1 and 5'}), 400
-    
+
     forecast_data = get_weather_forecast(location, days)
-    
+
     if 'error' in forecast_data:
         return jsonify(forecast_data), 500
-    
+
     return jsonify(forecast_data), 200
 
 
@@ -470,7 +503,7 @@ def get_weather_forecast_endpoint():
 @swag_from({
     'tags': ['Evaluation'],
     'summary': 'Evaluate event suitability',
-    'description': 'Evaluate event suitability by fetching weather data and calling microservice',
+    'description': 'Evaluate event suitability by fetching weather data and calling microservice. Uses the event type stored on the event.',
     'parameters': [
         {
             'name': 'event_id',
@@ -482,7 +515,7 @@ def get_weather_forecast_endpoint():
         {
             'name': 'body',
             'in': 'body',
-            'required': True,
+            'required': False,
             'schema': {
                 'type': 'object',
                 'properties': {
@@ -490,10 +523,9 @@ def get_weather_forecast_endpoint():
                         'type': 'string',
                         'enum': ['sports', 'market', 'gathering'],
                         'example': 'sports',
-                        'description': 'Type of event'
+                        'description': 'Only used if the event has no stored event_type'
                     }
-                },
-                'required': ['event_type']
+                }
             }
         }
     ],
@@ -534,7 +566,7 @@ def get_weather_forecast_endpoint():
             }
         },
         400: {
-            'description': 'Bad request - missing event_type or invalid data'
+            'description': 'Bad request - the event has no event_type and none was provided'
         },
         404: {
             'description': 'Event not found'
@@ -547,10 +579,11 @@ def get_weather_forecast_endpoint():
 def evaluate_event(event_id):
     """
     Evaluate event suitability by fetching weather data and calling microservice.
-    
-    Expects JSON body with:
-    - event_type (str): Type of event (sports, market, gathering)
-    
+
+    Uses the event_type stored on the event. A JSON body with
+    event_type (sports, market, gathering) is only needed for older
+    events that do not have a stored event type.
+
     Returns:
     - suitability_score (int): Score between 0 and 100
     - risk_level (str): Low Risk, Moderate Risk, or High Risk
@@ -558,25 +591,27 @@ def evaluate_event(event_id):
     - weather_data (dict): Weather data used for evaluation
     """
     event = Event.query.get_or_404(event_id)  # type: ignore
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
-    
-    event_type = data.get('event_type')
+    data = request.get_json(silent=True) or {}
+
+    # Use the event type stored on the event. The request body is only used
+    # as a fallback for older events that were created without an event type.
+    event_type = event.event_type or parse_event_type(data.get('event_type'))
     if not event_type:
-        return jsonify({'error': 'event_type is required'}), 400
-    
+        return jsonify({
+            'error': 'This event has no event_type. Set it on the event, or send a valid event_type '
+                     f"({', '.join(EVENT_TYPES)}) in the request body."
+        }), 400
+
     # Fetch weather data for event location
     weather_data = get_weather_by_location(event.location)
-    
+
     if 'error' in weather_data:
         return jsonify(weather_data), 500
-    
+
     # Extract required weather parameters
     temperature = weather_data.get('temperature', 0.0)
     wind_speed = weather_data.get('wind_speed', 0.0)
-    
+
     # Calculate rain probability from weather description
     weather_main = weather_data.get('weather_main', '').lower()
     if 'rain' in weather_main or 'drizzle' in weather_main or 'thunderstorm' in weather_main:
@@ -585,7 +620,7 @@ def evaluate_event(event_id):
         rain_probability = 0.3
     else:
         rain_probability = 0.1
-    
+
     # Call microservice for analysis
     analysis_result = call_microservice_analyze(
         temperature=temperature,
@@ -593,10 +628,10 @@ def evaluate_event(event_id):
         wind_speed=wind_speed,
         event_type=event_type
     )
-    
+
     if 'error' in analysis_result:
         return jsonify(analysis_result), 500
-    
+
     # Save evaluation log to database
     evaluation_log = EvaluationLog(
         event_id=event_id,
@@ -604,10 +639,10 @@ def evaluate_event(event_id):
         risk_alert=analysis_result.get('risk_level', ''),
         weather_data=json.dumps(weather_data)
     )
-    
+
     db.session.add(evaluation_log)
     db.session.commit()
-    
+
     # Return aggregated result
     return jsonify({
         'event_id': event_id,
@@ -674,24 +709,25 @@ def evaluate_event(event_id):
 def get_event_evaluation(event_id):
     """
     Get the latest evaluation result for a specific event.
-    
+
     Returns:
     - event details
     - latest evaluation log
     - aggregated data for frontend display
     """
     event = Event.query.get_or_404(event_id)  # type: ignore
-    
+
     # Get the latest evaluation log for this event
-    latest_evaluation = EvaluationLog.query.filter_by(event_id=event_id).order_by(EvaluationLog.evaluated_at.desc()).first()  # type: ignore
-    
+    latest_evaluation = EvaluationLog.query.filter_by(event_id=event_id).order_by(
+        EvaluationLog.evaluated_at.desc()).first()  # type: ignore
+
     if not latest_evaluation:
         return jsonify({
             'event': event.to_dict(),
             'evaluation': None,
             'message': 'No evaluation found for this event'
         }), 200
-    
+
     result = {
         'event': event.to_dict(),
         'evaluation': {
@@ -701,7 +737,7 @@ def get_event_evaluation(event_id):
             'evaluated_at': latest_evaluation.evaluated_at.isoformat()
         }
     }
-    
+
     return jsonify(result), 200
 
 
@@ -750,21 +786,22 @@ def get_event_evaluation(event_id):
 def get_all_evaluations():
     """
     Get all events with their latest evaluation results.
-    
+
     Returns:
     - List of events with their evaluation data aggregated
     """
     events = Event.query.all()  # type: ignore
     results = []
-    
+
     for event in events:
-        latest_evaluation = EvaluationLog.query.filter_by(event_id=event.id).order_by(EvaluationLog.evaluated_at.desc()).first()  # type: ignore
-        
+        latest_evaluation = EvaluationLog.query.filter_by(event_id=event.id).order_by(
+            EvaluationLog.evaluated_at.desc()).first()  # type: ignore
+
         event_data = {
             'event': event.to_dict(),
             'evaluation': None
         }
-        
+
         if latest_evaluation:
             event_data['evaluation'] = {
                 'suitability_score': latest_evaluation.suitability_score,
@@ -772,7 +809,7 @@ def get_all_evaluations():
                 'weather_data': json.loads(latest_evaluation.weather_data) if latest_evaluation.weather_data else None,
                 'evaluated_at': latest_evaluation.evaluated_at.isoformat()
             }
-        
+
         results.append(event_data)
-    
+
     return jsonify(results), 200
