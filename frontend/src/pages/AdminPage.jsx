@@ -16,7 +16,9 @@ function AdminPage() {
 
   async function loadEvents() {
     try {
-      setEvents(await getEvents());
+      // Load up to 100 events (the maximum page size the API allows)
+      const data = await getEvents(1, 100);
+      setEvents(data.events);
     } catch (err) {
       setError(err.message);
     } finally {

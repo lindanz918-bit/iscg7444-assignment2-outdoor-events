@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { getEvents } from "../api";
 import EventDetailPage from "./EventDetailPage";
 
+const EVENTS_PER_PAGE = 10;
+
 function formatDate(d) {
   if (!d) return "";
   const parts = d.split("-");
@@ -11,16 +13,27 @@ function formatDate(d) {
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getEvents()
-      .then((data) => setEvents(Array.isArray(data) ? data : data.events || []))
+    getEvents(page, EVENTS_PER_PAGE)
+      .then((data) => {
+        setEvents(data.events);
+        setTotalPages(data.total_pages);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
+
+  function goToPage(newPage) {
+    setLoading(true);
+    setError("");
+    setPage(newPage);
+  }
 
   if (selectedId !== null) {
     return <EventDetailPage id={selectedId} onBack={() => setSelectedId(null)} />;
@@ -47,6 +60,20 @@ export default function EventsPage() {
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px" }}>
+          <button onClick={() => goToPage(page - 1)} disabled={page <= 1 || loading}>
+            ← Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages || loading}>
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

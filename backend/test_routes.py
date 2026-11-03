@@ -4,11 +4,13 @@ from app.models import User, Event
 
 
 @pytest.fixture
-def app():
+def app(monkeypatch):
+    # Set the database before create_app() so the tests use an in-memory
+    # database and never clear the local database file
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
     app = create_app()
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    
+
     with app.app_context():
         db.create_all()
         yield app
@@ -21,10 +23,11 @@ def client(app):
 
 
 def test_get_events(client):
-    """Test getting all events"""
+    """Test getting the first page of events"""
     response = client.get('/api/events')
     assert response.status_code == 200
-    assert isinstance(response.json, list)
+    assert isinstance(response.json['events'], list)
+    assert response.json['current_page'] == 1
 
 
 def test_create_event_without_auth(client):
