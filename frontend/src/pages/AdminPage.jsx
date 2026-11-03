@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getEvents, createEvent, updateEvent, deleteEvent } from "../api";
 
-const emptyForm = { title: "", description: "", location: "", date: "", time: "" };
+const emptyForm = { title: "", description: "", location: "", date: "", time: "", event_type: "" };
 
 function formatDate(date) {
   return date ? date.split("-").reverse().join("/") : "";
@@ -39,8 +39,8 @@ function AdminPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.title || !form.location || !form.date) {
-      setError("Title, location and date are required.");
+    if (!form.title || !form.location || !form.date || !form.event_type) {
+      setError("Title, location, date, and event type are required.");
       return;
     }
     try {
@@ -64,6 +64,7 @@ function AdminPage() {
       location: event.location,
       date: event.date,
       time: event.time || "",
+      event_type: event.event_type || "",
     });
     setEditingId(event.id);
   }
@@ -94,6 +95,12 @@ function AdminPage() {
         <input name="location" placeholder="Location" value={form.location} onChange={handleChange} />
         <input name="date" type="date" value={form.date} onChange={handleChange} />
         <input name="time" type="time" value={form.time} onChange={handleChange} />
+        <select name="event_type" value={form.event_type} onChange={handleChange}>
+          <option value="">Select Event Type</option>
+          <option value="sports">Sports</option>
+          <option value="market">Market</option>
+          <option value="gathering">Gathering</option>
+        </select>
         <div style={{ display: "flex", gap: "8px" }}>
           <button type="submit">{editingId ? "Save" : "Add"}</button>
           {editingId && <button type="button" onClick={resetForm}>Cancel</button>}
