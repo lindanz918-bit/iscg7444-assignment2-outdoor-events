@@ -14,7 +14,7 @@ evaluation_bp = Blueprint('evaluation', __name__)
 def admin_required():
     """Check if current user is admin"""
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user = User.query.get(current_user_id)  # type: ignore
     if not user or user.role != 'admin':
         return False
     return True
@@ -23,14 +23,14 @@ def admin_required():
 @events_bp.route('/api/events', methods=['GET'])
 def get_events():
     """Retrieve a list of all events"""
-    events = Event.query.all()
+    events = Event.query.all()  # type: ignore
     return jsonify([event.to_dict() for event in events]), 200
 
 
 @events_bp.route('/api/events/<int:event_id>', methods=['GET'])
 def get_event(event_id):
     """Retrieve details for a specific event"""
-    event = Event.query.get_or_404(event_id)
+    event = Event.query.get_or_404(event_id)  # type: ignore
     return jsonify(event.to_dict()), 200
 
 
@@ -73,7 +73,7 @@ def update_event(event_id):
     if not admin_required():
         return jsonify({'error': 'Admin access required'}), 403
     
-    event = Event.query.get_or_404(event_id)
+    event = Event.query.get_or_404(event_id)  # type: ignore
     data = request.get_json()
     
     if not data:
@@ -103,7 +103,7 @@ def delete_event(event_id):
     if not admin_required():
         return jsonify({'error': 'Admin access required'}), 403
     
-    event = Event.query.get_or_404(event_id)
+    event = Event.query.get_or_404(event_id)  # type: ignore
     db.session.delete(event)
     db.session.commit()
     
