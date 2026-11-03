@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getEvent } from "../api";
+import SuitabilityCheck from "./SuitabilityCheck";
 
 function formatDate(d) {
   if (!d) return "";
@@ -34,6 +35,7 @@ export default function EventDetailPage({ id, onBack }) {
             <strong>Location:</strong> {event.location}
           </p>
           {event.description && <p>{event.description}</p>}
+          <SuitabilityCheck eventId={id} />
         </div>
       )}
     </div>

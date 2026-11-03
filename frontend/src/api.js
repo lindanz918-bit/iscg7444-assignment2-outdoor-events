@@ -32,3 +32,5 @@ export const getEvent = (id) => request(`/api/events/${id}`);
 export const createEvent = (event) => request("/api/events", { method: "POST", body: JSON.stringify(event) });
 export const updateEvent = (id, event) => request(`/api/events/${id}`, { method: "PUT", body: JSON.stringify(event) });
 export const deleteEvent = (id) => request(`/api/events/${id}`, { method: "DELETE" });
+export const evaluateEvent = (id, eventType) =>
+  request(`/api/evaluation/evaluate/${id}`, { method: "POST", body: JSON.stringify({ event_type: eventType }) });
