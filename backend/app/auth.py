@@ -2,11 +2,62 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from . import db
 from .models import User
+from flasgger import swag_from
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 
 @auth_bp.route('/register', methods=['POST'])
+@swag_from({
+    'tags': ['Authentication'],
+    'summary': 'Register a new user',
+    'description': 'Create a new user account with username, email, and password',
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'username': {'type': 'string', 'example': 'john_doe'},
+                    'email': {'type': 'string', 'example': 'john@example.com'},
+                    'password': {'type': 'string', 'example': 'securepassword123'}
+                },
+                'required': ['username', 'email', 'password']
+            }
+        }
+    ],
+    'responses': {
+        201: {
+            'description': 'User registered successfully',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'message': {'type': 'string', 'example': 'User registered successfully'},
+                    'user': {
+                        'type': 'object',
+                        'properties': {
+                            'id': {'type': 'integer', 'example': 1},
+                            'username': {'type': 'string', 'example': 'john_doe'},
+                            'email': {'type': 'string', 'example': 'john@example.com'},
+                            'role': {'type': 'string', 'example': 'user'}
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing fields or user already exists',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Username already exists'}
+                }
+            }
+        }
+    }
+})
 def register():
     data = request.get_json()
     
@@ -39,6 +90,65 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@swag_from({
+    'tags': ['Authentication'],
+    'summary': 'Login user',
+    'description': 'Authenticate a user with email and password and return a JWT access token',
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'email': {'type': 'string', 'example': 'john@example.com'},
+                    'password': {'type': 'string', 'example': 'securepassword123'}
+                },
+                'required': ['email', 'password']
+            }
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Login successful',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'message': {'type': 'string', 'example': 'Login successful'},
+                    'access_token': {'type': 'string', 'example': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'},
+                    'user': {
+                        'type': 'object',
+                        'properties': {
+                            'id': {'type': 'integer', 'example': 1},
+                            'username': {'type': 'string', 'example': 'john_doe'},
+                            'email': {'type': 'string', 'example': 'john@example.com'},
+                            'role': {'type': 'string', 'example': 'user'}
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing fields',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Email and password are required'}
+                }
+            }
+        },
+        401: {
+            'description': 'Unauthorized - invalid credentials',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Invalid email or password'}
+                }
+            }
+        }
+    }
+})
 def login():
     data = request.get_json()
     
@@ -67,6 +177,49 @@ def login():
 
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
+@swag_from({
+    'tags': ['Authentication'],
+    'summary': 'Get current user',
+    'description': 'Retrieve the currently authenticated user information',
+    'security': [{'Bearer': []}],
+    'responses': {
+        200: {
+            'description': 'Current user information',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'user': {
+                        'type': 'object',
+                        'properties': {
+                            'id': {'type': 'integer', 'example': 1},
+                            'username': {'type': 'string', 'example': 'john_doe'},
+                            'email': {'type': 'string', 'example': 'john@example.com'},
+                            'role': {'type': 'string', 'example': 'user'}
+                        }
+                    }
+                }
+            }
+        },
+        401: {
+            'description': 'Unauthorized - missing or invalid token',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Missing Authorization Header'}
+                }
+            }
+        },
+        404: {
+            'description': 'User not found',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'User not found'}
+                }
+            }
+        }
+    }
+})
 def get_current_user():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)

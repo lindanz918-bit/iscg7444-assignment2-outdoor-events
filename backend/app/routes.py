@@ -4,6 +4,7 @@ from . import db
 from .models import Event, User, EvaluationLog
 from .weather import get_weather_by_location, get_weather_forecast
 from .microservice_client import call_microservice_analyze
+from flasgger import swag_from
 import json
 
 events_bp = Blueprint('events', __name__)
@@ -21,6 +22,30 @@ def admin_required():
 
 
 @events_bp.route('/api/events', methods=['GET'])
+@swag_from({
+    'tags': ['Events'],
+    'summary': 'Get all events',
+    'description': 'Retrieve a list of all events',
+    'responses': {
+        200: {
+            'description': 'List of events',
+            'schema': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'id': {'type': 'integer', 'example': 1},
+                        'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                        'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
+                        'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                        'date': {'type': 'string', 'example': '2024-12-15'},
+                        'time': {'type': 'string', 'example': '14:00'}
+                    }
+                }
+            }
+        }
+    }
+})
 def get_events():
     """Retrieve a list of all events"""
     events = Event.query.all()  # type: ignore
@@ -28,6 +53,39 @@ def get_events():
 
 
 @events_bp.route('/api/events/<int:event_id>', methods=['GET'])
+@swag_from({
+    'tags': ['Events'],
+    'summary': 'Get event by ID',
+    'description': 'Retrieve details for a specific event',
+    'parameters': [
+        {
+            'name': 'event_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the event to retrieve'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Event details',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'id': {'type': 'integer', 'example': 1},
+                    'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                    'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
+                    'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                    'date': {'type': 'string', 'example': '2024-12-15'},
+                    'time': {'type': 'string', 'example': '14:00'}
+                }
+            }
+        },
+        404: {
+            'description': 'Event not found'
+        }
+    }
+})
 def get_event(event_id):
     """Retrieve details for a specific event"""
     event = Event.query.get_or_404(event_id)  # type: ignore
@@ -36,6 +94,67 @@ def get_event(event_id):
 
 @events_bp.route('/api/events', methods=['POST'])
 @jwt_required()
+@swag_from({
+    'tags': ['Events'],
+    'summary': 'Create event',
+    'description': 'Create a new event (admin only)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                    'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
+                    'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                    'date': {'type': 'string', 'example': '2024-12-15'},
+                    'time': {'type': 'string', 'example': '14:00'}
+                },
+                'required': ['title', 'location', 'date']
+            }
+        }
+    ],
+    'responses': {
+        201: {
+            'description': 'Event created successfully',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'id': {'type': 'integer', 'example': 1},
+                    'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                    'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
+                    'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                    'date': {'type': 'string', 'example': '2024-12-15'},
+                    'time': {'type': 'string', 'example': '14:00'}
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing required fields',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'title is required'}
+                }
+            }
+        },
+        401: {
+            'description': 'Unauthorized - missing or invalid token'
+        },
+        403: {
+            'description': 'Forbidden - admin access required',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Admin access required'}
+                }
+            }
+        }
+    }
+})
 def create_event():
     """Create a new event (admin only)"""
     if not admin_required():
@@ -68,6 +187,64 @@ def create_event():
 
 @events_bp.route('/api/events/<int:event_id>', methods=['PUT'])
 @jwt_required()
+@swag_from({
+    'tags': ['Events'],
+    'summary': 'Update event',
+    'description': 'Update event information (admin only)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {
+            'name': 'event_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the event to update'
+        },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'title': {'type': 'string', 'example': 'Summer Music Festival 2024'},
+                    'description': {'type': 'string', 'example': 'Updated description'},
+                    'location': {'type': 'string', 'example': 'Albert Park, Auckland'},
+                    'date': {'type': 'string', 'example': '2024-12-20'},
+                    'time': {'type': 'string', 'example': '15:00'}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Event updated successfully',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'id': {'type': 'integer', 'example': 1},
+                    'title': {'type': 'string', 'example': 'Summer Music Festival 2024'},
+                    'description': {'type': 'string', 'example': 'Updated description'},
+                    'location': {'type': 'string', 'example': 'Albert Park, Auckland'},
+                    'date': {'type': 'string', 'example': '2024-12-20'},
+                    'time': {'type': 'string', 'example': '15:00'}
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - no data provided'
+        },
+        401: {
+            'description': 'Unauthorized - missing or invalid token'
+        },
+        403: {
+            'description': 'Forbidden - admin access required'
+        },
+        404: {
+            'description': 'Event not found'
+        }
+    }
+})
 def update_event(event_id):
     """Update event information (admin only)"""
     if not admin_required():
@@ -98,6 +275,41 @@ def update_event(event_id):
 
 @events_bp.route('/api/events/<int:event_id>', methods=['DELETE'])
 @jwt_required()
+@swag_from({
+    'tags': ['Events'],
+    'summary': 'Delete event',
+    'description': 'Delete an event (admin only)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {
+            'name': 'event_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the event to delete'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Event deleted successfully',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'message': {'type': 'string', 'example': 'Event deleted successfully'}
+                }
+            }
+        },
+        401: {
+            'description': 'Unauthorized - missing or invalid token'
+        },
+        403: {
+            'description': 'Forbidden - admin access required'
+        },
+        404: {
+            'description': 'Event not found'
+        }
+    }
+})
 def delete_event(event_id):
     """Delete an event (admin only)"""
     if not admin_required():
@@ -111,6 +323,55 @@ def delete_event(event_id):
 
 
 @weather_bp.route('/api/weather/current', methods=['GET'])
+@swag_from({
+    'tags': ['Weather'],
+    'summary': 'Get current weather',
+    'description': 'Get current weather for a location',
+    'parameters': [
+        {
+            'name': 'location',
+            'in': 'query',
+            'type': 'string',
+            'required': True,
+            'description': 'Location name (e.g., Auckland, New Zealand)',
+            'example': 'Auckland'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Current weather data',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'location': {'type': 'string', 'example': 'Auckland'},
+                    'temperature': {'type': 'number', 'example': 22.5},
+                    'weather_main': {'type': 'string', 'example': 'Clear'},
+                    'weather_description': {'type': 'string', 'example': 'clear sky'},
+                    'humidity': {'type': 'integer', 'example': 65},
+                    'wind_speed': {'type': 'number', 'example': 3.5}
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing location parameter',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Location parameter is required'}
+                }
+            }
+        },
+        500: {
+            'description': 'Internal server error - weather service error',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Failed to fetch weather data'}
+                }
+            }
+        }
+    }
+})
 def get_current_weather():
     """Get current weather for a location"""
     location = request.args.get('location')
@@ -127,6 +388,65 @@ def get_current_weather():
 
 
 @weather_bp.route('/api/weather/forecast', methods=['GET'])
+@swag_from({
+    'tags': ['Weather'],
+    'summary': 'Get weather forecast',
+    'description': 'Get weather forecast for a location for up to 5 days',
+    'parameters': [
+        {
+            'name': 'location',
+            'in': 'query',
+            'type': 'string',
+            'required': True,
+            'description': 'Location name (e.g., Auckland, New Zealand)',
+            'example': 'Auckland'
+        },
+        {
+            'name': 'days',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'description': 'Number of days for forecast (1-5)',
+            'default': 5,
+            'example': 3
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Weather forecast data',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'location': {'type': 'string', 'example': 'Auckland'},
+                    'forecast': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'date': {'type': 'string', 'example': '2024-12-16'},
+                                'temperature': {'type': 'number', 'example': 23.0},
+                                'weather_main': {'type': 'string', 'example': 'Clouds'},
+                                'weather_description': {'type': 'string', 'example': 'few clouds'}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing location or invalid days parameter',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Location parameter is required'}
+                }
+            }
+        },
+        500: {
+            'description': 'Internal server error - weather service error'
+        }
+    }
+})
 def get_weather_forecast_endpoint():
     """Get weather forecast for a location"""
     location = request.args.get('location')
@@ -147,6 +467,83 @@ def get_weather_forecast_endpoint():
 
 
 @evaluation_bp.route('/api/evaluation/evaluate/<int:event_id>', methods=['POST'])
+@swag_from({
+    'tags': ['Evaluation'],
+    'summary': 'Evaluate event suitability',
+    'description': 'Evaluate event suitability by fetching weather data and calling microservice',
+    'parameters': [
+        {
+            'name': 'event_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the event to evaluate'
+        },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'event_type': {
+                        'type': 'string',
+                        'enum': ['sports', 'market', 'gathering'],
+                        'example': 'sports',
+                        'description': 'Type of event'
+                    }
+                },
+                'required': ['event_type']
+            }
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Evaluation result',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'event_id': {'type': 'integer', 'example': 1},
+                    'event': {
+                        'type': 'object',
+                        'properties': {
+                            'id': {'type': 'integer', 'example': 1},
+                            'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                            'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                            'date': {'type': 'string', 'example': '2024-12-15'}
+                        }
+                    },
+                    'evaluation': {
+                        'type': 'object',
+                        'properties': {
+                            'suitability_score': {'type': 'integer', 'example': 85},
+                            'risk_level': {'type': 'string', 'example': 'Low Risk'},
+                            'recommendation': {'type': 'string', 'example': 'Conditions are favorable for the event'}
+                        }
+                    },
+                    'weather_data': {
+                        'type': 'object',
+                        'properties': {
+                            'temperature': {'type': 'number', 'example': 22.5},
+                            'weather_main': {'type': 'string', 'example': 'Clear'},
+                            'wind_speed': {'type': 'number', 'example': 3.5}
+                        }
+                    },
+                    'evaluated_at': {'type': 'string', 'example': '2024-12-15T10:30:00'}
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - missing event_type or invalid data'
+        },
+        404: {
+            'description': 'Event not found'
+        },
+        500: {
+            'description': 'Internal server error - weather or microservice error'
+        }
+    }
+})
 def evaluate_event(event_id):
     """
     Evaluate event suitability by fetching weather data and calling microservice.
@@ -222,6 +619,58 @@ def evaluate_event(event_id):
 
 
 @evaluation_bp.route('/api/evaluation/events/<int:event_id>', methods=['GET'])
+@swag_from({
+    'tags': ['Evaluation'],
+    'summary': 'Get event evaluation',
+    'description': 'Get the latest evaluation result for a specific event',
+    'parameters': [
+        {
+            'name': 'event_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the event'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Event evaluation data',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'event': {
+                        'type': 'object',
+                        'properties': {
+                            'id': {'type': 'integer', 'example': 1},
+                            'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                            'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                            'date': {'type': 'string', 'example': '2024-12-15'}
+                        }
+                    },
+                    'evaluation': {
+                        'type': 'object',
+                        'properties': {
+                            'suitability_score': {'type': 'integer', 'example': 85},
+                            'risk_alert': {'type': 'string', 'example': 'Low Risk'},
+                            'weather_data': {
+                                'type': 'object',
+                                'properties': {
+                                    'temperature': {'type': 'number', 'example': 22.5},
+                                    'weather_main': {'type': 'string', 'example': 'Clear'}
+                                }
+                            },
+                            'evaluated_at': {'type': 'string', 'example': '2024-12-15T10:30:00'}
+                        }
+                    },
+                    'message': {'type': 'string', 'example': 'No evaluation found for this event'}
+                }
+            }
+        },
+        404: {
+            'description': 'Event not found'
+        }
+    }
+})
 def get_event_evaluation(event_id):
     """
     Get the latest evaluation result for a specific event.
@@ -257,6 +706,47 @@ def get_event_evaluation(event_id):
 
 
 @evaluation_bp.route('/api/evaluation/events', methods=['GET'])
+@swag_from({
+    'tags': ['Evaluation'],
+    'summary': 'Get all evaluations',
+    'description': 'Get all events with their latest evaluation results',
+    'responses': {
+        200: {
+            'description': 'List of events with evaluation data',
+            'schema': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'event': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer', 'example': 1},
+                                'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                                'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                                'date': {'type': 'string', 'example': '2024-12-15'}
+                            }
+                        },
+                        'evaluation': {
+                            'type': 'object',
+                            'properties': {
+                                'suitability_score': {'type': 'integer', 'example': 85},
+                                'risk_alert': {'type': 'string', 'example': 'Low Risk'},
+                                'weather_data': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'temperature': {'type': 'number', 'example': 22.5}
+                                    }
+                                },
+                                'evaluated_at': {'type': 'string', 'example': '2024-12-15T10:30:00'}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+})
 def get_all_evaluations():
     """
     Get all events with their latest evaluation results.

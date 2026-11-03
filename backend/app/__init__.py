@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from flasgger import Swagger
 import os
 from dotenv import load_dotenv
 
@@ -53,5 +54,48 @@ def create_app():
     app.register_blueprint(weather_bp)
     app.register_blueprint(evaluation_bp)
     app.register_blueprint(auth_bp)
+
+    # Configure Swagger
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/docs"
+    }
+
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "Outdoor Events API",
+            "description": "API documentation for the Outdoor Events Application",
+            "version": "1.0.0"
+        },
+        "host": "localhost:5000",
+        "basePath": "/",
+        "schemes": ["http"],
+        "securityDefinitions": {
+            "Bearer": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
+            }
+        },
+        "security": [
+            {
+                "Bearer": []
+            }
+        ]
+    }
+
+    Swagger(app, config=swagger_config, template=swagger_template)
 
     return app
