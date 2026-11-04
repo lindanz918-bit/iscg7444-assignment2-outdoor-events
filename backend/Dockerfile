@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "run:app"]
+CMD ["gunicorn", "-w", "1", "-k", "gthread", "--threads", "4", "--timeout", "120", "-b", "0.0.0.0:5000", "run:app"]
