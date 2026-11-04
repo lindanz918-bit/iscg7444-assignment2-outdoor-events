@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminPage from "./pages/AdminPage";
 import EventsPage from "./pages/EventsPage";
 import LoginPage from "./pages/LoginPage";
@@ -7,6 +7,11 @@ import { getToken, clearToken } from "./api";
 function App() {
   const [view, setView] = useState("events");
   const [loggedIn, setLoggedIn] = useState(!!getToken());
+
+  useEffect(() => {
+    const WEATHER_MICROSERVICE_URL = "https://iscg7444-assignment2-outdoor-events.onrender.com";
+    fetch(`${WEATHER_MICROSERVICE_URL}/health`, { mode: "no-cors" }).catch(() => {});
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", textAlign: "left" }}>
