@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getEvents } from "../api";
 import EventDetailPage from "./EventDetailPage";
+import "./EventsPage.css";
 
 const EVENTS_PER_PAGE = 10;
 
@@ -9,6 +10,11 @@ function formatDate(d) {
   const parts = d.split("-");
   if (parts.length !== 3) return d;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function formatEventType(type) {
+  if (!type) return "General";
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 export default function EventsPage() {
@@ -40,40 +46,77 @@ export default function EventsPage() {
   }
 
   return (
-    <div>
-      <h1>Upcoming Events</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {loading && <p>Loading...</p>}
-      {!loading && !error && events.length === 0 && <p>No events yet.</p>}
-      <div style={{ display: "grid", gap: "12px" }}>
-        {events.map((ev) => (
-          <div
-            key={ev.id}
-            style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "16px" }}
-          >
-            <h3 style={{ margin: "0 0 6px" }}>{ev.title}</h3>
-            <p style={{ margin: "0 0 10px", color: "#666" }}>
-              {formatDate(ev.date)}
-              {ev.time ? ` ${ev.time}` : ""} · {ev.location}
-            </p>
-            <button onClick={() => setSelectedId(ev.id)}>View details</button>
+    <div className="events-page">
+      <div className="events-container">
+        {error && (
+          <div className="error-message">
+            <p>{error}</p>
           </div>
-        ))}
-      </div>
+        )}
+        
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading events...</p>
+          </div>
+        ) : !error && events.length === 0 ? (
+          <div className="empty-state">
+            <p>No events yet.</p>
+          </div>
+        ) : (
+          <>
+            <div className="events-grid">
+              {events.map((ev) => (
+                <div key={ev.id} className="event-card card">
+                  <div className="event-card-content">
+                    <div className="event-type-badge">{formatEventType(ev.event_type)}</div>
+                    <h3 className="event-title">{ev.title}</h3>
+                    <div className="event-details">
+                      <div className="event-detail-item">
+                        <span className="detail-icon">📅</span>
+                        <span>{formatDate(ev.date)}</span>
+                        {ev.time && <span> · {ev.time}</span>}
+                      </div>
+                      <div className="event-detail-item">
+                        <span className="detail-icon">📍</span>
+                        <span>{ev.location}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    className="btn btn-primary event-card-button"
+                    onClick={() => setSelectedId(ev.id)}
+                  >
+                    View Details
+                  </button>
+                </div>
+              ))}
+            </div>
 
-      {totalPages > 1 && (
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px" }}>
-          <button onClick={() => goToPage(page - 1)} disabled={page <= 1 || loading}>
-            ← Previous
-          </button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages || loading}>
-            Next →
-          </button>
-        </div>
-      )}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button 
+                  className="btn btn-secondary pagination-button"
+                  onClick={() => goToPage(page - 1)} 
+                  disabled={page <= 1 || loading}
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {page} of {totalPages}
+                </span>
+                <button 
+                  className="btn btn-secondary pagination-button"
+                  onClick={() => goToPage(page + 1)} 
+                  disabled={page >= totalPages || loading}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
