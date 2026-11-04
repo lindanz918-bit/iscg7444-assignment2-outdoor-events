@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { evaluateEvent } from "../api";
+import "./SuitabilityCheck.css";
 
 const EVENT_TYPES = [
   { value: "sports", label: "Sports" },
@@ -7,10 +8,10 @@ const EVENT_TYPES = [
   { value: "gathering", label: "Gathering" },
 ];
 
-const RISK_COLOURS = {
-  "Low Risk": "#2e7d32",
-  "Moderate Risk": "#ed6c02",
-  "High Risk": "#c62828",
+const RISK_CLASS_MAP = {
+  "Low Risk": "low-risk",
+  "Moderate Risk": "moderate-risk",
+  "High Risk": "high-risk",
 };
 
 export default function SuitabilityCheck({ eventId }) {
@@ -35,67 +36,110 @@ export default function SuitabilityCheck({ eventId }) {
 
   const evaluation = result && result.evaluation;
   const weather = result && result.weather_data;
-  const riskColour = (evaluation && RISK_COLOURS[evaluation.risk_level]) || "#333";
+  const riskClass = (evaluation && RISK_CLASS_MAP[evaluation.risk_level]) || "";
 
   return (
-    <section
-      style={{
-        marginTop: "24px",
-        padding: "16px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-      }}
-    >
-      <h2 style={{ marginTop: 0 }}>Weather and Outdoor Suitability</h2>
+    <div className="suitability-check card">
+      <h2 className="suitability-title">Weather & Outdoor Suitability</h2>
 
-      <label>
-        Event type:{" "}
-        <select
-          value={eventType}
-          onChange={(e) => {
-            setEventType(e.target.value);
-            setResult(null);
-          }}
+      <div className="suitability-controls">
+        <div className="event-type-selector">
+          <label htmlFor="event-type">Event Type</label>
+          <select
+            id="event-type"
+            value={eventType}
+            onChange={(e) => {
+              setEventType(e.target.value);
+              setResult(null);
+            }}
+          >
+            {EVENT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button 
+          className="btn btn-primary check-button"
+          onClick={handleCheck} 
+          disabled={loading}
         >
-          {EVENT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>{" "}
-      <button onClick={handleCheck} disabled={loading}>
-        {loading ? "Checking..." : "Check suitability"}
-      </button>
+          {loading ? "Analysing weather conditions..." : "Check Suitability"}
+        </button>
+      </div>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && (
+        <div className="error-message">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Analysing weather conditions...</p>
+        </div>
+      )}
 
       {evaluation && (
-        <div style={{ marginTop: "16px" }}>
-          <p style={{ fontSize: "2rem", margin: "0 0 4px", color: riskColour }}>
-            <strong>{evaluation.suitability_score}</strong> / 100
-          </p>
-          <p style={{ margin: "0 0 8px", color: riskColour }}>
-            <strong>{evaluation.risk_level}</strong>
-          </p>
-          <p>{evaluation.recommendation}</p>
+        <div className="suitability-result">
+          <div className="score-display">
+            <div className="score-number">
+              {evaluation.suitability_score}
+            </div>
+            <div className="score-label">Suitability Score</div>
+            <div className="score-max">/ 100</div>
+          </div>
+
+          <div className={`risk-badge ${riskClass}`}>
+            {evaluation.risk_level}
+          </div>
+
+          <div className="recommendation">
+            <p>{evaluation.recommendation}</p>
+          </div>
         </div>
       )}
 
       {weather && (
-        <div>
-          <h3>Current weather in {weather.location}</h3>
-          <ul>
-            <li>Conditions: {weather.weather_description}</li>
-            <li>
-              Temperature: {Math.round(weather.temperature)}°C (feels like{" "}
-              {Math.round(weather.feels_like)}°C)
-            </li>
-            <li>Wind: {weather.wind_speed} m/s</li>
-            <li>Humidity: {weather.humidity}%</li>
-          </ul>
+        <div className="weather-info card">
+          <h3>Current Weather in {weather.location}</h3>
+          <div className="weather-grid">
+            <div className="weather-item">
+              <span className="weather-icon">🌡️</span>
+              <div className="weather-details">
+                <span className="weather-label">Temperature</span>
+                <span className="weather-value">
+                  {Math.round(weather.temperature)}°C 
+                  <span className="weather-sub">(feels like {Math.round(weather.feels_like)}°C)</span>
+                </span>
+              </div>
+            </div>
+            <div className="weather-item">
+              <span className="weather-icon">💨</span>
+              <div className="weather-details">
+                <span className="weather-label">Wind</span>
+                <span className="weather-value">{weather.wind_speed} m/s</span>
+              </div>
+            </div>
+            <div className="weather-item">
+              <span className="weather-icon">💧</span>
+              <div className="weather-details">
+                <span className="weather-label">Humidity</span>
+                <span className="weather-value">{weather.humidity}%</span>
+              </div>
+            </div>
+            <div className="weather-item">
+              <span className="weather-icon">☁️</span>
+              <div className="weather-details">
+                <span className="weather-label">Conditions</span>
+                <span className="weather-value">{weather.weather_description}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
