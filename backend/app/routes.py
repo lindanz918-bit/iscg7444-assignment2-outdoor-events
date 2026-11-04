@@ -32,36 +32,121 @@ def parse_event_type(value):
 EVENT_TYPE_ERROR = f"event_type must be one of: {', '.join(EVENT_TYPES)}"
 
 
+DEFAULT_PAGE_LIMIT = 10
+MAX_PAGE_LIMIT = 100
+
+
+def parse_positive_int(name, default, maximum=None):
+    """
+    Read an optional positive integer query parameter.
+
+    Returns:
+        tuple: (value, error message). The error message is None when the value is valid.
+    """
+    raw_value = request.args.get(name)
+    if raw_value is None or raw_value.strip() == '':
+        return default, None
+    try:
+        value = int(raw_value)
+    except ValueError:
+        return None, f'{name} must be a whole number'
+    if value < 1:
+        return None, f'{name} must be 1 or greater'
+    if maximum is not None and value > maximum:
+        return None, f'{name} must be {maximum} or less'
+    return value, None
+
+
 @events_bp.route('/api/events', methods=['GET'])
 @swag_from({
     'tags': ['Events'],
-    'summary': 'Get all events',
-    'description': 'Retrieve a list of all events',
+    'summary': 'Get events (paginated)',
+    'description': 'Retrieve one page of events, with pagination metadata',
+    'parameters': [
+        {
+            'name': 'page',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'default': 1,
+            'description': 'Page number, starting from 1'
+        },
+        {
+            'name': 'limit',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'default': DEFAULT_PAGE_LIMIT,
+            'description': f'Number of events per page (1-{MAX_PAGE_LIMIT})'
+        }
+    ],
     'responses': {
         200: {
-            'description': 'List of events',
+            'description': 'One page of events with pagination metadata',
             'schema': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'id': {'type': 'integer', 'example': 1},
-                        'title': {'type': 'string', 'example': 'Summer Music Festival'},
-                        'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
-                        'location': {'type': 'string', 'example': 'Central Park, Auckland'},
-                        'date': {'type': 'string', 'example': '2024-12-15'},
-                        'time': {'type': 'string', 'example': '14:00'},
-                        'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
-                    }
+                'type': 'object',
+                'properties': {
+                    'events': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer', 'example': 1},
+                                'title': {'type': 'string', 'example': 'Summer Music Festival'},
+                                'description': {'type': 'string', 'example': 'Annual outdoor music festival'},
+                                'location': {'type': 'string', 'example': 'Central Park, Auckland'},
+                                'date': {'type': 'string', 'example': '2024-12-15'},
+                                'time': {'type': 'string', 'example': '14:00'},
+                                'event_type': {'type': 'string', 'enum': ['sports', 'market', 'gathering'], 'example': 'sports'}
+                            }
+                        }
+                    },
+                    'total_items': {'type': 'integer', 'example': 23},
+                    'total_pages': {'type': 'integer', 'example': 3},
+                    'current_page': {'type': 'integer', 'example': 1},
+                    'limit': {'type': 'integer', 'example': 10}
+                }
+            }
+        },
+        400: {
+            'description': 'Bad request - page or limit is not a valid number',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'limit must be 100 or less'}
                 }
             }
         }
     }
 })
 def get_events():
-    """Retrieve a list of all events"""
-    events = Event.query.all()  # type: ignore
-    return jsonify([event.to_dict() for event in events]), 200
+    """Retrieve one page of events (?page=1&limit=10) with pagination metadata"""
+    page, error = parse_positive_int('page', default=1)
+    if error:
+        return jsonify({'error': error}), 400
+
+    limit, error = parse_positive_int('limit', default=DEFAULT_PAGE_LIMIT, maximum=MAX_PAGE_LIMIT)
+    if error:
+        return jsonify({'error': error}), 400
+
+    total_items = Event.query.count()  # type: ignore
+    total_pages = (total_items + limit - 1) // limit  # round up
+
+    # Only fetch the events for the requested page
+    events = (
+        Event.query.order_by(Event.id)  # type: ignore
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+
+    return jsonify({
+        'events': [event.to_dict() for event in events],
+        'total_items': total_items,
+        'total_pages': total_pages,
+        'current_page': page,
+        'limit': limit
+    }), 200
 
 
 @events_bp.route('/api/events/<int:event_id>', methods=['GET'])
