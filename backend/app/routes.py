@@ -434,10 +434,17 @@ def delete_event(event_id):
         return jsonify({'error': 'Admin access required'}), 403
 
     event = Event.query.get_or_404(event_id)  # type: ignore
-    db.session.delete(event)
-    db.session.commit()
 
-    return jsonify({'message': 'Event deleted successfully'}), 200
+    try:
+        # Delete all related EvaluationLog records first
+        EvaluationLog.query.filter_by(event_id=event_id).delete()  # type: ignore
+        # Then delete the event
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify({'message': 'Event deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete event'}), 500
 
 
 @weather_bp.route('/api/weather/current', methods=['GET'])
